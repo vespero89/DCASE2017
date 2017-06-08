@@ -8,8 +8,7 @@ Created on Fri Feb  3 17:36:52 2017
 import os
 import numpy as np
 from keras import backend as T
-import pickle as p
-
+import math
 # def __init__(id):
 #     global logger
 #     logger = logging.getLogger(str(id))
@@ -221,3 +220,36 @@ def labelize_data(y):#TODO usare sklearn.preprocessing.LabelEncoder ?
         i += 1
 
     return numeric_labels
+
+
+def create_event_labels(dataset_list, class_labels=None, time_resolution=0.01, length=30):
+    target_matrix = list()
+    for item in dataset_list:
+        #Create event roll
+        # Initialize event roll
+        event_roll = np.zeros((int(math.ceil(length * 1.0 / time_resolution)), len(class_labels)))
+
+        # Fill-in event_roll
+        for item in dataset_list:
+            event_onset = item[1]
+            event_offset = item[2]
+            event_label = item[3]
+            if event_onset is not None and event_offset is not np.nan:
+                if event_label is not np.nan:
+                    pos = class_labels.index(event_label)
+                    onset = int(np.floor(event_onset * 1.0 / time_resolution))
+                    offset = int(np.ceil(event_offset * 1.0 / time_resolution))
+
+                    if offset > event_roll.shape[0]:
+                        # we have event which continues beyond max_offset_value
+                        offset = event_roll.shape[0]
+
+                    if onset <= event_roll.shape[0]:
+                        # We have event inside roll
+                        event_roll[onset:offset, pos] = 1
+
+                    # Pad event roll to full length of the signal
+                    # activity_matrix_dict[audio_filename] = event_roll.pad(length=data[audio_filename].feat[0].shape[0])
+                    target_matrix.append(event_roll)
+
+    return target_matrix

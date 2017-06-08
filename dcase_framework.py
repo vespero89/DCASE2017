@@ -98,3 +98,4 @@ class EventRoll(object):
         import matplotlib.pyplot as plt
         plt.matshow(self.event_roll.T, cmap=plt.cm.gray, interpolation='nearest', aspect='auto')
         plt.show()
+

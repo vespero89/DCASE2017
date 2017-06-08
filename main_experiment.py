@@ -25,6 +25,7 @@ import sys
 import pandas as pd
 # import gc
 from copy import deepcopy
+
 sys.setrecursionlimit(10000) #for deepcopy net model
 
 done=False #status flag for this process
@@ -60,6 +61,7 @@ parser.add_argument("-tln", "--test-list-names", dest="testNamesLists", action=e
 parser.add_argument("-dl", "--dev-list-names", dest="devNamesLists", action=eval_action,
                     default=["devset_1.lst", "devset_2.lst", "devset_3.lst", "devset_4.lst"])
 parser.add_argument("-it", "--input-type", dest="input_type", default="spectrograms")
+parser.add_argument("-hop", "--hop-size", dest="hop_size", default=0.01)
 
 # CNN params
 parser.add_argument("-is", "--cnn-input-shape", dest="cnn_input_shape", action=eval_action, default=[1, 129, 197])
@@ -216,7 +218,12 @@ try:
     trainset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
     trainset = dm.load_dataset(trainset_list) #TODO NORMALIZE ONCE for ALL, then scale for mean and std when loading
 
+    class_labels = ['babycry', 'glassbreak', 'gunshot']
+
+    trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=class_labels, time_resolution=args.hop_size)
     #TODO Create Labels (See at baseline code)
+
+
 
     trainset, mean, std = dm.normalize_data(trainset)  # compute mean and std of the trainset and normalize the trainset
 
