@@ -22,6 +22,7 @@ import datetime
 import utility as u
 from sklearn.metrics import f1_score
 import sys
+import pandas as pd
 # import gc
 from copy import deepcopy
 sys.setrecursionlimit(10000) #for deepcopy net model
@@ -50,6 +51,7 @@ parser.add_argument("-log", "--logging", dest="log", default=False, action="stor
 parser.add_argument("-sifg", "--save-Img-For-Gif", dest="saveImgForGif", default=False, action="store_true")
 
 parser.add_argument("-cf", "--config-file", dest="config_filename", default=None)
+parser.add_argument("-list", "--dataset-list", dest="datasetList", default=None, type=str)
 #parser.add_argument("-sp", "--score-path", dest="scorePath", default="score") #non serve più
 parser.add_argument("-tl", "--trainset-list", dest="trainNameLists", action=eval_action, default=["trainset.lst"])
 parser.add_argument("-c", "--case", dest="case", default="case6")
@@ -203,22 +205,19 @@ try:
     # dictsckeleton = {'AucDevs': foldDict, 'f1Devs': foldDict, 'CmDevs': foldDict, 'AucTest': foldDict,
     #                  'CmTest': foldDict, 'f1Test': foldDict, 'cmTot': 0, 'f1Final': 0}
 
-    dictsckeleton = {'AucDevsFold1': 0, 'AucDevsFold2': 0, 'AucDevsFold3': 0, 'AucDevsFold4': 0,
-                     'f1DevsFold1': 0, 'f1DevsFold2': 0, 'f1DevsFold3': 0, 'f1DevsFold4': 0,
-                     'AucTestFold1': 0, 'AucTestFold2': 0, 'AucTestFold3': 0, 'AucTestFold4': 0,
-                     'f1TestFold1': 0, 'f1TestFold2': 0, 'f1TestFold3': 0, 'f1TestFold4': 0,
-                     'f1Final': 0}
-    #train and dev path
-    listTrainpath = path.join(args.root_path, 'lists', 'train')
-    listPath = path.join(args.root_path, 'lists', 'dev+test', args.case)
+    # dictsckeleton = {'AucDevsFold1': 0, 'AucDevsFold2': 0, 'AucDevsFold3': 0, 'AucDevsFold4': 0,
+    #                  'f1DevsFold1': 0, 'f1DevsFold2': 0, 'f1DevsFold3': 0, 'f1DevsFold4': 0,
+    #                  'AucTestFold1': 0, 'AucTestFold2': 0, 'AucTestFold3': 0, 'AucTestFold4': 0,
+    #                  'f1TestFold1': 0, 'f1TestFold2': 0, 'f1TestFold3': 0, 'f1TestFold4': 0,
+    #                  'f1Final': 0}
 
     # Manage DATASET
-    a3fall = dm.load_A3FALL(path.join(args.root_path, 'dataset', args.input_type))  # load dataset
+    #trainset file list
+    trainset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
+    trainset = dm.load_dataset(trainset_list) #TODO NORMALIZE ONCE for ALL, then scale for mean and std when loading
 
-    # il trainset è 1 e sempre lo stesso per tutti gli esperimenti
-    trainset = dm.split_A3FALL_from_lists(a3fall, listTrainpath, args.trainNameLists)[0]  # need a traiset in order to compute the mean and variance.
+    #TODO Create Labels (See at baseline code)
 
-    # Then use this mean and variance for normalize the whole dataset
     trainset, mean, std = dm.normalize_data(trainset)  # compute mean and std of the trainset and normalize the trainset
 
     # calcolo il batch size
@@ -226,15 +225,15 @@ try:
 
     a3fall_n, _, _ = dm.normalize_data(a3fall, mean, std)  # normalize the dataset with the mean and std of the trainset
     a3fall_n_z = dm.awgn_padding_set(a3fall_n)
-    del a3fall
-        # creo i set partendo dal dataset normalizzato e paddato
-    trainsets = dm.split_A3FALL_from_lists(a3fall_n_z, listTrainpath, args.trainNameLists)
-    devsets = dm.split_A3FALL_from_lists(a3fall_n_z, listPath, args.devNamesLists)
-    testsets = dm.split_A3FALL_from_lists(a3fall_n_z, listPath, args.testNamesLists)
-
-    #set with no padding. For the distance final computation.
-    devsets_origin = dm.split_A3FALL_from_lists(a3fall_n, listPath, args.devNamesLists)
-    testsets_origin = dm.split_A3FALL_from_lists(a3fall_n, listPath, args.testNamesLists)
+    # del a3fall
+    #     # creo i set partendo dal dataset normalizzato e paddato
+    # trainsets = dm.split_A3FALL_from_lists(a3fall_n_z, listTrainpath, args.trainNameLists)
+    # devsets = dm.split_A3FALL_from_lists(a3fall_n_z, listPath, args.devNamesLists)
+    # testsets = dm.split_A3FALL_from_lists(a3fall_n_z, listPath, args.testNamesLists)
+    #
+    # #set with no padding. For the distance final computation.
+    # devsets_origin = dm.split_A3FALL_from_lists(a3fall_n, listPath, args.devNamesLists)
+    # testsets_origin = dm.split_A3FALL_from_lists(a3fall_n, listPath, args.testNamesLists)
 
     # reshape dataset per darli in ingresso alla rete
 

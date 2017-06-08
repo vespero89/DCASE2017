@@ -8,6 +8,7 @@ Created on Fri Feb  3 17:36:52 2017
 import os
 import numpy as np
 from keras import backend as T
+import pickle as p
 
 # def __init__(id):
 #     global logger
@@ -16,7 +17,7 @@ from keras import backend as T
 #     #     global logger
 #     #     logger = u.MyLogger(id, logToFile)
 
-def load_A3FALL(spectrogramsPath):
+def load_A3FALL(spectrogramsPath, ext):
     """
     Carica tutto il dataset (spettri) in una lista di elementi [filename , matrix ]
     """
@@ -25,11 +26,28 @@ def load_A3FALL(spectrogramsPath):
     for root, dirnames, filenames in os.walk(spectrogramsPath):
         i = 0
         for file in filenames:
-            matrix = np.load(os.path.join(root, file))
-            data = [file, matrix]
-            a3fall.append(data)
-            i += 1
+            if file.endswith(ext):
+                matrix = np.load(os.path.join(root, file))
+                data = [file, matrix]
+                a3fall.append(data)
+                i += 1
     return a3fall
+
+def load_dataset(dataset):
+    """
+    Carica tutto il dataset (spettri) in una lista di elementi [filename , matrix ]
+    """
+    print("Dataset Loading")
+    features_list = list()
+    for element in dataset['filename']:
+        matrix = np.load(element)
+        if element.endswith('.cpickle'):
+            matrix = matrix['feat']
+            matrix = matrix[0]
+        data = [element, matrix]
+        features_list.append(data)
+    #dataset['features'] = features_list
+    return features_list
 
 
 def awgn_padding_set(set_to_pad, loc=0.0, scale=1.0):
