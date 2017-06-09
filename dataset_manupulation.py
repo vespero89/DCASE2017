@@ -176,9 +176,8 @@ def normalize_data(data, mean=None, std=None):
         raise ("Error!!! Provide both mean and variance")
     elif mean == None and std == None:  # compute mean and variance of the passed data
         matrix = np.asarray(data)
-    matrix = matrix.reshape((-1,matrix.shape[2]))
-    mean = np.mean(matrix, axis=0)
-    std = np.std(matrix, axis=0)
+    mean = np.mean(matrix, axis=(0,1))
+    std = np.std(matrix, axis=(0,1))
     data_std = (matrix - mean) / std
     return data_std, mean, std
 

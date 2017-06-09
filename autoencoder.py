@@ -517,6 +517,86 @@ class autoencoder_fall_detection:
 
         return self._autoencoder
 
+    def define_cnn_classifier(self, params):
+        print("define_CNN_classifier")
+        # ---------------------------------------------------------- Encoding
+        d = params.cnn_input_shape[0]
+        h = params.cnn_input_shape[1]
+        w = params.cnn_input_shape[2]
+        dims = [[h,w]]
+        print("(" + str(d) + ", " + str(h) + ", " + str(w) + ")")
+
+        input_img = Input(shape=params.cnn_input_shape)
+        x = input_img
+
+        for i in range(len(params.kernel_number)):
+            x = Convolution2D(params.kernel_number[i],
+                              params.kernel_shape[i][0],
+                              params.kernel_shape[i][1],
+                              init=params.cnn_init,
+                              activation=params.cnn_conv_activation,
+                              border_mode=params.border_mode,
+                              subsample=tuple(params.strides[i]),
+                              W_regularizer=eval(params.cnn_w_reg),
+                              b_regularizer=eval(params.cnn_b_reg),
+                              activity_regularizer=eval(params.cnn_a_reg),
+                              W_constraint=eval(params.cnn_w_constr),
+                              b_constraint=eval(params.cnn_b_constr),
+                              bias=params.bias)(x)
+
+            if params.border_mode == 'same':
+                ph = params.kernel_shape[i][0] - 1
+                pw = params.kernel_shape[i][1] - 1
+            else:
+                ph = pw = 0
+            h = int((h - params.kernel_shape[i][0] + ph) / params.strides[i][0]) + 1
+            w = int((w - params.kernel_shape[i][1] + pw) / params.strides[i][1]) + 1
+            d = params.kernel_number[i]
+            print("conv(" + str(i) + ") -> (" + str(d) + ", " + str(h) + ", " + str(w) + ")")
+
+            if params.pool_type=="all":
+                x = MaxPooling2D(params.m_pool[i], border_mode='same')(x)
+                # if MaxPooling border=='valid' h=int(h/params.params.m_pool[i][0])
+                h = math.ceil(h / params.m_pool[i][0])
+                w = math.ceil(w / params.m_pool[i][1])
+                print("pool(" + str(i) + ") -> (" + str(d) + ", " + str(h) + ", " + str(w) + ")")
+            dims.append([h, w])
+
+        if params.pool_type=="only_end":
+            x = MaxPooling2D(params.m_pool[0], border_mode='same')(x)
+            # if MaxPooling border=='valid' h=int(h/params.params.m_pool[i][0])
+            h = math.ceil(h / params.m_pool[-1][0])
+            w = math.ceil(w / params.m_pool[-1][1])
+            print("pool  -> (" + str(d) + ", " + str(h) + ", " + str(w) + ")")
+            dims[-1]=[h, w]
+        print(dims)
+        x = Flatten()(x)
+
+        inputs = [d*h*w]
+        inputs.extend(params.dense_shapes)
+
+        for i in range(len(inputs)):
+            x = Dense(inputs[i],
+                      init=params.cnn_init,
+                      activation=params.cnn_dense_activation,
+                      W_regularizer=eval(params.d_w_reg),
+                      b_regularizer=eval(params.d_b_reg),
+                      activity_regularizer=eval(params.d_a_reg),
+                      W_constraint=eval(params.d_w_constr),
+                      b_constraint=eval(params.d_b_constr),
+                      bias=params.bias)(x)
+            print("dense[" + str(i) + "] -> (" + str(inputs[i]) + ")")
+            if (params.dropout):
+                x = Dropout(params.drop_rate)(x)
+
+        predictions = Dense(len(params.class_labels), activation='softmax')(x)
+
+        self._autoencoder = Model(input_img, predictions)
+        self._autoencoder.summary()
+
+        return self._autoencoder
+
+
     def model_compile(self, model=None, optimizer='adadelta', learning_rate=1.0, loss='mse'):
         """
         compila il modello con i parametri passati: se non viene passato compila il modello istanziato dalla classe

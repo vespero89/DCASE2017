@@ -64,6 +64,8 @@ parser.add_argument("-dl", "--dev-list-names", dest="devNamesLists", action=eval
 
 parser.add_argument("-it", "--input-type", dest="input_type", default="spectrograms")
 parser.add_argument("-hop", "--hop-size", dest="hop_size", default=0.01)
+parser.add_argument("-classes", "--class-labels", dest="class_labels", action=eval_action, default=['babycry', 'glassbreak', 'gunshot'])
+
 
 # CNN params
 parser.add_argument("-is", "--cnn-input-shape", dest="cnn_input_shape", action=eval_action, default=[1, 129, 197])
@@ -219,12 +221,10 @@ try:
     # Manage DATASET
     #trainset file list
     trainset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
-    trainset, trainset_shape = dm.load_dataset(trainset_list, )
-
-    class_labels = ['babycry', 'glassbreak', 'gunshot'] #TODO ADD TO DEFAULTS
+    trainset, trainset_shape = dm.load_dataset(trainset_list)
 
     data_max_len = max(trainset_shape)
-    trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=class_labels, time_resolution=args.hop_size, length=data_max_len)
+    trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=args.class_labels, time_resolution=args.hop_size, length=data_max_len)
 
     trainset, mean, std = dm.normalize_data(trainset)  # compute mean and std of the trainset and normalize the trainset
     # TODO NORMALIZE ONCE for ALL, then scale for mean and std when loading
