@@ -41,7 +41,7 @@ def load_dataset(dataset):
     print("Dataset Loading")
     features_list = list()
     data_shape = list()
-    for element in dataset['filename']:
+    for element in dataset:
         matrix = np.load(element)
         if element.endswith('.cpickle'):
             matrix = matrix['feat']

@@ -25,6 +25,7 @@ import sys
 import pandas as pd
 # import gc
 from copy import deepcopy
+from sklearn.model_selection import KFold
 
 sys.setrecursionlimit(10000) #for deepcopy net model
 
@@ -65,7 +66,7 @@ parser.add_argument("-dl", "--dev-list-names", dest="devNamesLists", action=eval
 parser.add_argument("-it", "--input-type", dest="input_type", default="spectrograms")
 parser.add_argument("-hop", "--hop-size", dest="hop_size", default=0.01)
 parser.add_argument("-classes", "--class-labels", dest="class_labels", action=eval_action, default=['babycry', 'glassbreak', 'gunshot'])
-
+parser.add_argument("-kfold", "--kfold-cv", dest="kfold", default=False, action="store_true")
 
 # CNN params
 parser.add_argument("-is", "--cnn-input-shape", dest="cnn_input_shape", action=eval_action, default=[1, 129, 197])
@@ -220,9 +221,21 @@ try:
 
     # Manage DATASET
     #trainset file list
-    trainset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
-    trainset, trainset_shape = dm.load_dataset(trainset_list)
+    dataset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
+    kf = KFold(n_splits=4)
+    dataset_files = dataset_list['filename']
+    indices = np.arange(0, len(dataset_files))
+    fold_list = list(train_index for train_index in kf.split(indices))
 
+    #PSEUDOCODE
+    if args.kfold is False:
+        trainset_list = dataset_list
+    else:
+        #TODO Create structure for k-fold splitting
+
+
+
+    trainset, trainset_shape = dm.load_dataset(dataset_files)
     data_max_len = max(trainset_shape)
     trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=args.class_labels, time_resolution=args.hop_size, length=data_max_len)
 
