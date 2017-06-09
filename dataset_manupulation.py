@@ -9,6 +9,8 @@ import os
 import numpy as np
 from keras import backend as T
 import math
+from sklearn.preprocessing import StandardScaler
+
 # def __init__(id):
 #     global logger
 #     logger = logging.getLogger(str(id))
@@ -38,15 +40,15 @@ def load_dataset(dataset):
     """
     print("Dataset Loading")
     features_list = list()
+    data_shape = list()
     for element in dataset['filename']:
         matrix = np.load(element)
         if element.endswith('.cpickle'):
             matrix = matrix['feat']
             matrix = matrix[0]
-        data = [element, matrix]
-        features_list.append(data)
-    #dataset['features'] = features_list
-    return features_list
+        data_shape.append(matrix.shape[0])
+        features_list.append(matrix)
+    return features_list, data_shape
 
 
 def awgn_padding_set(set_to_pad, loc=0.0, scale=1.0):
@@ -173,12 +175,11 @@ def normalize_data(data, mean=None, std=None):
     if bool(mean) ^ bool(std):  # xor operator
         raise ("Error!!! Provide both mean and variance")
     elif mean == None and std == None:  # compute mean and variance of the passed data
-        data_conc = concatenate_matrix(data)
-        mean = np.mean(data_conc)
-        std = np.std(data_conc)
-
-    data_std = [[d[0], ((d[1] - mean) / std)] for d in data]  # normalizza i dati: togle mean e divide per std
-
+        matrix = np.asarray(data)
+    matrix = matrix.reshape((-1,matrix.shape[2]))
+    mean = np.mean(matrix, axis=0)
+    std = np.std(matrix, axis=0)
+    data_std = (matrix - mean) / std
     return data_std, mean, std
 
 
@@ -230,26 +231,62 @@ def create_event_labels(dataset_list, class_labels=None, time_resolution=0.01, l
         event_roll = np.zeros((int(math.ceil(length * 1.0 / time_resolution)), len(class_labels)))
 
         # Fill-in event_roll
-        for item in dataset_list:
-            event_onset = item[1]
-            event_offset = item[2]
-            event_label = item[3]
-            if event_onset is not None and event_offset is not np.nan:
-                if event_label is not np.nan:
-                    pos = class_labels.index(event_label)
-                    onset = int(np.floor(event_onset * 1.0 / time_resolution))
-                    offset = int(np.ceil(event_offset * 1.0 / time_resolution))
+        event_onset = item[1]
+        event_offset = item[2]
+        event_label = item[3]
+        if event_onset is not np.nan and event_offset is not np.nan:
+            if event_label is not np.nan:
+                pos = class_labels.index(event_label)
+                onset = int(np.floor(event_onset * 1.0 / time_resolution))
+                offset = int(np.ceil(event_offset * 1.0 / time_resolution))
 
-                    if offset > event_roll.shape[0]:
-                        # we have event which continues beyond max_offset_value
-                        offset = event_roll.shape[0]
+                if offset > event_roll.shape[0]:
+                    # we have event which continues beyond max_offset_value
+                    offset = event_roll.shape[0]
 
-                    if onset <= event_roll.shape[0]:
-                        # We have event inside roll
-                        event_roll[onset:offset, pos] = 1
+                if onset <= event_roll.shape[0]:
+                    # We have event inside roll
+                    event_roll[onset:offset, pos] = 1
 
-                    # Pad event roll to full length of the signal
-                    # activity_matrix_dict[audio_filename] = event_roll.pad(length=data[audio_filename].feat[0].shape[0])
-                    target_matrix.append(event_roll)
+                # Pad event roll to full length of the signal
+        target_matrix.append(event_roll)
 
     return target_matrix
+
+def pad(sequence, length):
+    """Pad event roll's length to given length
+
+    Parameters
+    ----------
+    sequence
+    length : int
+        Length to be padded
+
+    Returns
+    -------
+     sequence: np.ndarray, shape=(m,k)
+        Padded event roll
+
+    """
+
+    if length > sequence.shape[0]:
+        padding = np.zeros((length-sequence.shape[0], sequence.shape[1]))
+        sequence = np.vstack((sequence, padding))
+
+    elif length < sequence.shape[0]:
+        sequence = sequence[0:length, :]
+
+    return sequence
+
+def plot(sequence, label):
+    """Plot Event roll
+    #TODO: plot two sequences
+    Returns
+    -------
+    None
+
+    """
+    sequence = label
+    import matplotlib.pyplot as plt
+    plt.matshow(sequence, cmap=plt.cm.gray, interpolation='nearest', aspect='auto')
+    plt.show()

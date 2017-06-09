@@ -50,8 +50,9 @@ parser.add_argument("-rp", "--root-path", dest="root_path", default=None)
 parser.add_argument("-id", "--exp-index", dest="id", default=0, type=int)
 parser.add_argument("-log", "--logging", dest="log", default=False, action="store_true")
 parser.add_argument("-sifg", "--save-Img-For-Gif", dest="saveImgForGif", default=False, action="store_true")
-
+parser.add_argument("-sv", "--save-model", dest="save_model", default=False, action="store_true")
 parser.add_argument("-cf", "--config-file", dest="config_filename", default=None)
+
 parser.add_argument("-list", "--dataset-list", dest="datasetList", default=None, type=str)
 #parser.add_argument("-sp", "--score-path", dest="scorePath", default="score") #non serve più
 parser.add_argument("-tl", "--trainset-list", dest="trainNameLists", action=eval_action, default=["trainset.lst"])
@@ -60,6 +61,7 @@ parser.add_argument("-tln", "--test-list-names", dest="testNamesLists", action=e
                     default=["testset_1.lst", "testset_2.lst", "testset_3.lst", "testset_4.lst"])
 parser.add_argument("-dl", "--dev-list-names", dest="devNamesLists", action=eval_action,
                     default=["devset_1.lst", "devset_2.lst", "devset_3.lst", "devset_4.lst"])
+
 parser.add_argument("-it", "--input-type", dest="input_type", default="spectrograms")
 parser.add_argument("-hop", "--hop-size", dest="hop_size", default=0.01)
 
@@ -98,8 +100,9 @@ parser.add_argument("-p", "--pool-type", dest="pool_type", default="all", choice
 
 # fit params
 parser.add_argument("-e", "--epoch", dest="epoch", default=50, type=int)
-parser.add_argument("-ns", "--no-shuffle", dest="shuffle", default=True, action="store_false")
-parser.add_argument("-bs", "--batch-size-fract", dest="batch_size_fract", default=0.1, type=float)
+parser.add_argument("-ns", "--shuffle", dest="shuffle", default="True", choices=["True","False","batch"])
+parser.add_argument("-bsf", "--batch-size-fract", dest="batch_size_fract", default=None, type=float, help='batch size express in % of the trainset')
+parser.add_argument("-bse", "--batch-size-effective", dest="batch_size_effective", default=None, type=int, help='batch size in number of sample')
 parser.add_argument("-f", "--fit-net", dest="fit_net", default=False, action="store_true")
 parser.add_argument("-o", "--optimizer", dest="optimizer", default="adadelta", choices=["adadelta", "adam", "sgd"])
 parser.add_argument("-l", "--loss", dest="loss", default="mse", choices=["mse", "msle"])
@@ -216,22 +219,21 @@ try:
     # Manage DATASET
     #trainset file list
     trainset_list = pd.read_csv(args.datasetList, sep='\t', names=["filename", "start", "stop", "event_class"], header=None)
-    trainset = dm.load_dataset(trainset_list) #TODO NORMALIZE ONCE for ALL, then scale for mean and std when loading
+    trainset, trainset_shape = dm.load_dataset(trainset_list, ) #TODO NORMALIZE ONCE for ALL, then scale for mean and std when loading
 
-    class_labels = ['babycry', 'glassbreak', 'gunshot']
+    class_labels = ['babycry', 'glassbreak', 'gunshot'] #TODO ADD TO DEFAULTS
 
-    trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=class_labels, time_resolution=args.hop_size)
+    data_max_len = max(trainset_shape)
+
+    trainset_targets = dm.create_event_labels(trainset_list._values, class_labels=class_labels, time_resolution=args.hop_size, length=data_max_len)
     #TODO Create Labels (See at baseline code)
-
-
 
     trainset, mean, std = dm.normalize_data(trainset)  # compute mean and std of the trainset and normalize the trainset
 
     # calcolo il batch size
-    batch_size = int(len(trainset)*args.batch_size_fract)
+    batch_size = int((trainset.shape[0])*args.batch_size_fract)
 
-    a3fall_n, _, _ = dm.normalize_data(a3fall, mean, std)  # normalize the dataset with the mean and std of the trainset
-    a3fall_n_z = dm.awgn_padding_set(a3fall_n)
+    #a3fall_n_z = dm.awgn_padding_set(a3fall_n)
     # del a3fall
     #     # creo i set partendo dal dataset normalizzato e paddato
     # trainsets = dm.split_A3FALL_from_lists(a3fall_n_z, listTrainpath, args.trainNameLists)
